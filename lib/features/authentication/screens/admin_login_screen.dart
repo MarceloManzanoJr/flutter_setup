@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:innolab_application/features/home/screens/admin_home_screen.dart';
 
 const _adminEmail = 'admin@gmail.com';
 const _adminPassword = 'admin12345678';
@@ -23,9 +24,9 @@ class AdminLoginScreen extends StatelessWidget {
                 Padding(
                   padding:
                       const EdgeInsets.symmetric(horizontal: 40, vertical: 24),
-                  child: Align(
-                    alignment: Alignment.centerLeft,
-                    child: Text(
+                  child: Row(
+                    children: [
+                      Text(
                       'ADVANCED MANUFACTURING Center MIMAROPA',
                       style: theme.textTheme.titleMedium?.copyWith(
                         fontWeight: FontWeight.w500,
@@ -33,6 +34,14 @@ class AdminLoginScreen extends StatelessWidget {
                         color: Colors.black,
                       ),
                     ),
+                    const SizedBox(width: 16),
+                    Expanded(
+                      child: Container(
+                        height: 2,
+                        color: Colors.redAccent,
+                      ),
+                    ),
+                    ],
                   ),
                 ),
                 Expanded(
@@ -226,6 +235,12 @@ class _RightPanelState extends State<_RightPanel> {
         ),
       );
     }
+     Navigator.pushReplacement(
+    context,
+    MaterialPageRoute(
+      builder: (context) => const AdminHomeScreen(),
+    ),
+  ); 
   }
 
   @override
