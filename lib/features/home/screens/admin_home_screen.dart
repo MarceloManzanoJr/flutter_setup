@@ -1,19 +1,21 @@
 import 'package:flutter/material.dart';
 import 'package:innolab_application/features/home/screens/home_tab_screen.dart';
 import 'package:innolab_application/features/maintenance/screens/maintenance_screen.dart';
+import 'package:innolab_application/features/schedule/screens/schedule_screen.dart';
 import 'package:innolab_application/features/message/screens/message_screen.dart';
 import 'package:innolab_application/features/request/screens/request_screen.dart';
 import 'package:innolab_application/features/staff/screens/staff_screen.dart';
 import 'package:innolab_application/features/user/screens/user_screen.dart';
-import 'package:innolab_application/features/home/screens/home_tab_screen.dart';
-
+import 'package:innolab_application/features/inventory/screens/inventory_screen.dart';
 enum AdminSection {
   home,
   maintenance,
+  schedule,
   request,
   message,
   staff,
   user,
+  inventory,
 }
 
 class AdminHomeScreen extends StatefulWidget {
@@ -221,6 +223,12 @@ class _Sidebar extends StatelessWidget {
             onTap: () => onSelect(AdminSection.maintenance),
           ),
           _SidebarItem(
+            icon: Icons.inventory_2_outlined,
+            label: 'Inventory',
+            selected: selected == AdminSection.inventory,
+            onTap: () => onSelect(AdminSection.inventory),
+          ),
+          _SidebarItem(
             icon: Icons.assignment_outlined,
             label: 'Request',
             selected: selected == AdminSection.request,
@@ -243,6 +251,12 @@ class _Sidebar extends StatelessWidget {
             label: 'User',
             selected: selected == AdminSection.user,
             onTap: () => onSelect(AdminSection.user),
+          ),
+          _SidebarItem(
+            icon: Icons.schedule_outlined,
+            label: 'Schedule',
+            selected: selected == AdminSection.schedule,
+            onTap: () => onSelect(AdminSection.schedule),
           ),
           const Spacer(),
           const Divider(height: 1),
@@ -378,7 +392,7 @@ class _SectionContent extends StatelessWidget {
   Widget _buildContent() {
     switch (section) {
       case AdminSection.home:
-        return const AdminHomeDashboard();
+        return AdminHomeDashboard();
       case AdminSection.maintenance:
         return const MaintenanceScreen();
       case AdminSection.request:
@@ -389,6 +403,10 @@ class _SectionContent extends StatelessWidget {
         return const StaffScreen();
       case AdminSection.user:
         return const UserScreen();
+      case AdminSection.schedule:
+        return ScheduleScreen();
+      case AdminSection.inventory:
+        return const InventoryScreen();
     }
   }
 
