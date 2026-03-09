@@ -1,4 +1,11 @@
 import 'package:flutter/material.dart';
+import 'package:innolab_application/features/home/screens/home_tab_screen.dart';
+import 'package:innolab_application/features/maintenance/screens/maintenance_screen.dart';
+import 'package:innolab_application/features/message/screens/message_screen.dart';
+import 'package:innolab_application/features/request/screens/request_screen.dart';
+import 'package:innolab_application/features/staff/screens/staff_screen.dart';
+import 'package:innolab_application/features/user/screens/user_screen.dart';
+import 'package:innolab_application/features/home/screens/home_tab_screen.dart';
 
 enum AdminSection {
   home,
@@ -252,14 +259,17 @@ class _Sidebar extends StatelessWidget {
                     size: 20,
                   ),
                 ),
-                const SizedBox(width: 8),
+                const SizedBox(width: 16),
                 Expanded(
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(
                         'Marcelo',
-                        style: theme.textTheme.bodyMedium,
+                        style: theme.textTheme.bodyMedium?.copyWith(
+                          color: Colors.black87,
+                          fontWeight: FontWeight.w500,
+                        ),
                         overflow: TextOverflow.ellipsis,
                       ),
                       Text(
@@ -291,10 +301,12 @@ class _Sidebar extends StatelessWidget {
                     size: 18,
                     color: Colors.black87,
                   ),
-                  const SizedBox(width: 8),
+                  const SizedBox(width: 16),
                   Text(
                     'Logout',
-                    style: theme.textTheme.bodySmall,
+                    style: theme.textTheme.bodySmall?.copyWith(
+                      color: Colors.black87,
+                    ),
                   ),
                 ],
               ),
@@ -363,39 +375,26 @@ class _SectionContent extends StatelessWidget {
 
   final AdminSection section;
 
-  String get _title {
+  Widget _buildContent() {
     switch (section) {
       case AdminSection.home:
-        return 'Home';
+        return const AdminHomeDashboard();
       case AdminSection.maintenance:
-        return 'Maintenance';
+        return const MaintenanceScreen();
       case AdminSection.request:
-        return 'Request';
+        return const RequestScreen();
       case AdminSection.message:
-        return 'Message';
+        return const MessageScreen();
       case AdminSection.staff:
-        return 'Staff';
+        return const StaffScreen();
       case AdminSection.user:
-        return 'User';
+        return const UserScreen();
     }
   }
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-
-    return Padding(
-      padding: const EdgeInsets.all(24),
-      child: Align(
-        alignment: Alignment.topLeft,
-        child: Text(
-          _title,
-          style: theme.textTheme.titleMedium?.copyWith(
-            fontWeight: FontWeight.w600,
-          ),
-        ),
-      ),
-    );
+    return _buildContent();
   }
 }
 
