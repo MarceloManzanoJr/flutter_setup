@@ -56,7 +56,7 @@ class AppUser {
   final String id;
   final String name;
   final String email;
-  final String department;
+  final String type;
   final UserTier tier;
   final bool isActive;
   final DateTime joinedAt;
@@ -71,7 +71,7 @@ class AppUser {
     required this.id,
     required this.name,
     required this.email,
-    required this.department,
+    required this.type,
     required this.tier,
     required this.isActive,
     required this.joinedAt,
@@ -98,7 +98,7 @@ final List<AppUser> _sampleUsers = [
     id: 'USR-001',
     name: 'John Doe',
     email: 'john.doe@company.com',
-    department: 'Engineering',
+    type: 'client',
     tier: UserTier.premium,
     isActive: true,
     joinedAt: DateTime(2023, 3, 14),
@@ -117,7 +117,7 @@ final List<AppUser> _sampleUsers = [
     id: 'USR-002',
     name: 'Jane Smith',
     email: 'jane.smith@company.com',
-    department: 'Product Design',
+    type: 'Student',
     tier: UserTier.enterprise,
     isActive: true,
     joinedAt: DateTime(2022, 11, 2),
@@ -136,7 +136,7 @@ final List<AppUser> _sampleUsers = [
     id: 'USR-003',
     name: 'Robert Brown',
     email: 'r.brown@company.com',
-    department: 'R&D',
+    type: 'businessman',
     tier: UserTier.standard,
     isActive: true,
     joinedAt: DateTime(2024, 1, 20),
@@ -154,7 +154,7 @@ final List<AppUser> _sampleUsers = [
     id: 'USR-004',
     name: 'Emily Davis',
     email: 'emily.d@company.com',
-    department: 'Marketing',
+    type: 'Marketing',
     tier: UserTier.standard,
     isActive: true,
     joinedAt: DateTime(2023, 7, 8),
@@ -172,7 +172,7 @@ final List<AppUser> _sampleUsers = [
     id: 'USR-005',
     name: 'Michael Lee',
     email: 'mlee@company.com',
-    department: 'Engineering',
+    type: 'Engineering',
     tier: UserTier.premium,
     isActive: true,
     joinedAt: DateTime(2022, 5, 30),
@@ -190,7 +190,7 @@ final List<AppUser> _sampleUsers = [
     id: 'USR-006',
     name: 'Clara Nguyen',
     email: 'clara.n@company.com',
-    department: 'Architecture',
+    type: 'Architecture',
     tier: UserTier.enterprise,
     isActive: false,
     joinedAt: DateTime(2023, 2, 11),
@@ -229,7 +229,7 @@ class _UserScreenState extends State<UserScreen> {
       final matchSearch = _searchQuery.isEmpty ||
           u.name.toLowerCase().contains(_searchQuery.toLowerCase()) ||
           u.email.toLowerCase().contains(_searchQuery.toLowerCase()) ||
-          u.department.toLowerCase().contains(_searchQuery.toLowerCase());
+          u.type.toLowerCase().contains(_searchQuery.toLowerCase());
       final matchTier = _tierFilter == 'All' ||
           (_tierFilter == 'Standard' && u.tier == UserTier.standard) ||
           (_tierFilter == 'Premium' && u.tier == UserTier.premium) ||
@@ -393,7 +393,7 @@ class _UserScreenState extends State<UserScreen> {
               onChanged: (v) => setState(() => _searchQuery = v),
               style: const TextStyle(fontSize: 14, color: AppColors.textPrimary),
               decoration: const InputDecoration(
-                hintText: 'Search by name, email or department…',
+                hintText: 'Search by name, email or type…',
                 hintStyle: TextStyle(fontSize: 13, color: AppColors.textMuted),
                 prefixIcon: Icon(Icons.search_rounded, size: 18, color: AppColors.textMuted),
                 border: InputBorder.none,
@@ -444,7 +444,7 @@ class _UserScreenState extends State<UserScreen> {
             child: Row(
               children: const [
                 Expanded(flex: 3, child: _TH('User')),
-                Expanded(flex: 2, child: _TH('Department')),
+                Expanded(flex: 2, child: _TH('Type')),
                 Expanded(flex: 2, child: _TH('Tier')),
                 Expanded(flex: 1, child: _TH('Requests')),
                 Expanded(flex: 1, child: _TH('Pending')),
@@ -565,7 +565,7 @@ class _UserRow extends StatelessWidget {
                 children: [
                   Icon(Icons.business_center_rounded, size: 12, color: AppColors.textMuted),
                   const SizedBox(width: 5),
-                  Text(user.department, style: const TextStyle(fontSize: 12, color: AppColors.textSecondary)),
+                  Text(user.type, style: const TextStyle(fontSize: 12, color: AppColors.textSecondary)),
                 ],
               ),
             ),
@@ -745,7 +745,7 @@ class _UserDetailPanel extends StatelessWidget {
           const SizedBox(height: 16),
 
           // Info rows
-          _InfoRow(icon: Icons.business_center_rounded, label: 'Department', value: user.department),
+          _InfoRow(icon: Icons.business_center_rounded, label: 'Type', value: user.type),
           _InfoRow(icon: Icons.badge_rounded, label: 'User ID', value: user.id, mono: true),
           _InfoRow(icon: Icons.calendar_today_rounded, label: 'Member since', value: _formatDate(user.joinedAt)),
 
