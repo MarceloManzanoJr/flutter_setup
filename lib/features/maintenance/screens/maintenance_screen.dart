@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:innolab_application/features/App_schedule_store.dart';
 
 // ─────────────────────────────────────────────
 //  DESIGN TOKENS
@@ -158,21 +159,58 @@ class _MaintenanceScreenState extends State<MaintenanceScreen>
     Tab(text: 'Analytics'),
   ];
 
+  // Merge the hardcoded list with any tasks pushed from ScheduleScreen
+  List<ScheduledTask> get _mergedSchedule {
+    final storeItems = AppScheduleStore.instance.tasks.map((t) {
+      final s = switch (t.status) {
+        SharedTaskStatus.upcoming  => ScheduleStatus.upcoming,
+        SharedTaskStatus.inProgress => ScheduleStatus.inProgress,
+        SharedTaskStatus.completed => ScheduleStatus.completed,
+        SharedTaskStatus.canceled  => ScheduleStatus.completed,
+        SharedTaskStatus.overdue   => ScheduleStatus.overdue,
+      };
+      return ScheduledTask(
+        id: t.id,
+        machineId: t.machineId,
+        machineName: t.machineName,
+        taskName: t.title,
+        assignedTo: t.assignedTo,
+        scheduledDate: t.scheduledDate,
+        status: s,
+        estimatedDuration: t.estimatedDuration,
+        notes: t.notes,
+      );
+    }).toList();
+
+    // Deduplicate: store items override hardcoded items with same ID
+    final hardcoded = _schedule.where(
+      (h) => !storeItems.any((s) => s.id == h.id),
+    ).toList();
+
+    return [...hardcoded, ...storeItems];
+  }
+
   @override
   void initState() {
     super.initState();
     _tab = TabController(length: 5, vsync: this);
     _tab.addListener(() => setState(() {}));
+    // Rebuild whenever a maintenance event is added/changed from ScheduleScreen
+    AppScheduleStore.instance.addListener(_onStoreChanged);
   }
+
+  void _onStoreChanged() => setState(() {});
 
   @override
   void dispose() {
     _tab.dispose();
+    AppScheduleStore.instance.removeListener(_onStoreChanged);
     super.dispose();
   }
 
   @override
   Widget build(BuildContext context) {
+    final schedule = _mergedSchedule;
     return Scaffold(
       backgroundColor: _C.bg,
       body: Row(
@@ -205,7 +243,7 @@ class _MaintenanceScreenState extends State<MaintenanceScreen>
                         dividerColor: _C.border,
                         tabs: [
                           _TabItem(label: 'Machines', count: _machines.length, tab: _tabs[0]),
-                          _TabItem(label: 'Schedule', count: _schedule.where((s) => s.status != ScheduleStatus.completed).length, tab: _tabs[1]),
+                          _TabItem(label: 'Schedule', count: schedule.where((s) => s.status != ScheduleStatus.completed).length, tab: _tabs[1]),
                           _TabItem(label: 'History', count: _logs.length, tab: _tabs[2]),
                           _TabItem(label: 'Issues', count: _issues.where((i) => i.status != IssueStatus.fixed).length, tab: _tabs[3], alertCount: _issues.where((i) => i.priority == IssuePriority.critical && i.status != IssueStatus.fixed).length),
                           _tabs[4],
@@ -224,7 +262,7 @@ class _MaintenanceScreenState extends State<MaintenanceScreen>
                         selectedMachine: _selectedMachine,
                         onSelect: (m) => setState(() => _selectedMachine = _selectedMachine?.id == m.id ? null : m),
                       ),
-                      _ScheduleTab(tasks: _schedule),
+                      _ScheduleTab(tasks: schedule),
                       _HistoryTab(logs: _logs),
                       _IssuesTab(issues: _issues),
                       _AnalyticsTab(machines: _machines, logs: _logs, issues: _issues),

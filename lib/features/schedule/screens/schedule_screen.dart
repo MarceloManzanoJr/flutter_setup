@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:innolab_application/features/App_schedule_store.dart';
 
 // ─────────────────────────────────────────────
 //  DESIGN TOKENS
@@ -425,8 +426,19 @@ class _ScheduleScreenState extends State<ScheduleScreen>
                   if (idx != -1) _events[idx].status = status;
                   _selectedEvent = _events[idx];
                 });
+                // Sync status to Maintenance tab if maintenance type
+                if (_selectedEvent?.type == EventType.maintenance) {
+                  AppScheduleStore.instance.updateStatus(
+                    _selectedEvent!.id,
+                    _toSharedStatus(status),
+                  );
+                }
               },
               onDelete: () {
+                // Remove from Maintenance tab if it was synced there
+                if (_selectedEvent?.type == EventType.maintenance) {
+                  AppScheduleStore.instance.removeById(_selectedEvent!.id);
+                }
                 setState(() {
                   _events.removeWhere((e) => e.id == _selectedEvent!.id);
                   _selectedEvent = null;
@@ -613,10 +625,38 @@ class _ScheduleScreenState extends State<ScheduleScreen>
               _events.add(newEvent);
             }
           });
+          // ── Sync to Maintenance tab if this is a maintenance event ──
+          if (newEvent.type == EventType.maintenance) {
+            final status = _toSharedStatus(newEvent.status);
+            final duration = newEvent.endTime.difference(newEvent.startTime);
+            AppScheduleStore.instance.addOrUpdateFromSchedule(
+              SharedMaintenanceTask(
+                id: newEvent.id,
+                title: newEvent.title,
+                notes: newEvent.description,
+                assignedTo: newEvent.assignedStaff ?? 'Unassigned',
+                machineName: newEvent.machine ?? 'N/A',
+                machineId: newEvent.linkedId ?? newEvent.id,
+                scheduledDate: newEvent.startTime,
+                endDate: newEvent.endTime,
+                status: status,
+                estimatedDuration: duration,
+              ),
+            );
+          }
         },
       ),
     );
   }
+
+  SharedTaskStatus _toSharedStatus(EventStatus s) => switch (s) {
+    EventStatus.pending => SharedTaskStatus.upcoming,
+    EventStatus.inProgress => SharedTaskStatus.inProgress,
+    EventStatus.completed => SharedTaskStatus.completed,
+    EventStatus.canceled => SharedTaskStatus.canceled,
+    EventStatus.approved => SharedTaskStatus.upcoming,
+    EventStatus.rejected => SharedTaskStatus.canceled,
+  };
 
   void _showTypePicker() => showModalBottomSheet(
     context: context,
