@@ -321,13 +321,15 @@ class _MobileScheduleViewState extends State<_MobileScheduleView>
       isScrollControlled: true,
       shape: const RoundedRectangleBorder(
           borderRadius: BorderRadius.vertical(top: Radius.circular(16))),
-      builder: (ctx) => StatefulBuilder(
-        builder: (ctx, setSheetState) {
-          EventType? localType = typeFilter;
-          EventStatus? localStatus = statusFilter;
-          String? localStaff = staffFilter;
+      builder: (ctx) {
+        // Declared outside StatefulBuilder so setSheetState rebuilds
+        // don't reset them back to the current mixin values.
+        EventType? localType = typeFilter;
+        EventStatus? localStatus = statusFilter;
+        String? localStaff = staffFilter;
 
-          return DraggableScrollableSheet(
+        return StatefulBuilder(
+          builder: (ctx, setSheetState) => DraggableScrollableSheet(
             expand: false,
             initialChildSize: 0.75,
             maxChildSize: 0.9,
@@ -373,8 +375,7 @@ class _MobileScheduleViewState extends State<_MobileScheduleView>
                       label: tm.label,
                       isActive: localType == t,
                       activeColor: tm.color,
-                      onTap: () =>
-                          setSheetState(() => localType = t),
+                      onTap: () => setSheetState(() => localType = t),
                     );
                   }),
                 ]),
@@ -392,8 +393,7 @@ class _MobileScheduleViewState extends State<_MobileScheduleView>
                     label: 'All',
                     isActive: localStatus == null,
                     activeColor: _C.indigo,
-                    onTap: () =>
-                        setSheetState(() => localStatus = null),
+                    onTap: () => setSheetState(() => localStatus = null),
                   ),
                   ...EventStatus.values.map((s) {
                     final sm = _statusMeta(s);
@@ -401,8 +401,7 @@ class _MobileScheduleViewState extends State<_MobileScheduleView>
                       label: sm.label,
                       isActive: localStatus == s,
                       activeColor: sm.color,
-                      onTap: () =>
-                          setSheetState(() => localStatus = s),
+                      onTap: () => setSheetState(() => localStatus = s),
                     );
                   }),
                 ]),
@@ -420,15 +419,13 @@ class _MobileScheduleViewState extends State<_MobileScheduleView>
                     label: 'All Staff',
                     isActive: localStaff == null,
                     activeColor: _C.indigo,
-                    onTap: () =>
-                        setSheetState(() => localStaff = null),
+                    onTap: () => setSheetState(() => localStaff = null),
                   ),
                   ..._staffList.map((s) => _MobileFilterChip(
                         label: s,
                         isActive: localStaff == s,
                         activeColor: _C.indigo,
-                        onTap: () =>
-                            setSheetState(() => localStaff = s),
+                        onTap: () => setSheetState(() => localStaff = s),
                       )),
                 ]),
                 const SizedBox(height: 24),
@@ -459,9 +456,9 @@ class _MobileScheduleViewState extends State<_MobileScheduleView>
                 ),
               ],
             ),
-          );
-        },
-      ),
+          ),
+        );
+      },
     );
   }
 
