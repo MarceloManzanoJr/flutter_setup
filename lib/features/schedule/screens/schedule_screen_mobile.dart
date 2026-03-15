@@ -115,30 +115,20 @@ class _MobileScheduleViewState extends State<_MobileScheduleView>
                   focusedDay: focusedDay,
                   events: filteredEvents,
                   selectedDay: selectedDay,
-                  onDayTap: (d) {
-                    setState(() {
-                      selectedDay = d;
-                      focusedDay = d;
-                    });
-                    WidgetsBinding.instance.addPostFrameCallback((_) {
-                      if (mounted) _viewTab.animateTo(0);
-                    });
-                  },
+                  onDayTap: (d) => setState(() {
+                    selectedDay = d;
+                    focusedDay = d;
+                  }),
                   onEventTap: _showEventDetail,
                 ),
                 _MobileMonthlyView(
                   focusedDay: focusedDay,
                   events: filteredEvents,
                   selectedDay: selectedDay,
-                  onDayTap: (d) {
-                    setState(() {
-                      selectedDay = d;
-                      focusedDay = d;
-                    });
-                    WidgetsBinding.instance.addPostFrameCallback((_) {
-                      if (mounted) _viewTab.animateTo(0);
-                    });
-                  },
+                  onDayTap: (d) => setState(() {
+                    selectedDay = d;
+                    focusedDay = d;
+                  }),
                   onMonthChanged: (d) => setState(() => focusedDay = d),
                 ),
               ],
@@ -721,6 +711,15 @@ class _MobileWeeklyView extends StatelessWidget {
         focusedDay.subtract(Duration(days: focusedDay.weekday - 1));
     final days = List.generate(7, (i) => weekStart.add(Duration(days: i)));
 
+    // Compute selected-day events at the widget level so any prop change
+    // (selectedDay, events) immediately produces the correct list.
+    final dayEvents = events
+        .where((e) =>
+            e.startTime.year  == selectedDay.year &&
+            e.startTime.month == selectedDay.month &&
+            e.startTime.day   == selectedDay.day)
+        .toList();
+
     return Column(children: [
       // Horizontal day strip
       Container(
@@ -804,34 +803,64 @@ class _MobileWeeklyView extends StatelessWidget {
       ),
       // Events for selected day
       Expanded(
-        child: Builder(builder: (ctx) {
-          final dayEvents = events
-              .where((e) =>
-                  e.startTime.year == selectedDay.year &&
-                  e.startTime.month == selectedDay.month &&
-                  e.startTime.day == selectedDay.day)
-              .toList();
-
-          if (dayEvents.isEmpty) {
-            return _MobileEmptyState(
-              icon: Icons.event_available_rounded,
-              title: 'No events',
-              subtitle:
-                  'Nothing scheduled for ${_fmtDateShort(selectedDay)}',
-            );
-          }
-
-          return ListView.separated(
-            padding: const EdgeInsets.fromLTRB(14, 14, 14, 100),
-            itemCount: dayEvents.length,
-            separatorBuilder: (_, __) => const SizedBox(height: 8),
-            itemBuilder: (_, i) => _MobileEventCard(
-              event: dayEvents[i],
-              onTap: () => onEventTap(dayEvents[i]),
-              onQuickAction: (_) {},
-            ),
-          );
-        }),
+        child: dayEvents.isEmpty
+            ? _MobileEmptyState(
+                icon: Icons.event_available_rounded,
+                title: 'No events',
+                subtitle:
+                    'Nothing scheduled for ${_fmtDateShort(selectedDay)}',
+              )
+            : Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Padding(
+                    padding: const EdgeInsets.fromLTRB(14, 12, 14, 4),
+                    child: Row(children: [
+                      Text(
+                        _isSameDay(selectedDay, DateTime.now())
+                            ? 'Today — ${_fmtDateShort(selectedDay)}'
+                            : _fmtDateLong(selectedDay)
+                                .split(', ')
+                                .take(2)
+                                .join(', '),
+                        style: const TextStyle(
+                            fontSize: 13,
+                            fontWeight: FontWeight.w700,
+                            color: _C.textSecondary),
+                      ),
+                      const SizedBox(width: 8),
+                      Container(
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 7, vertical: 3),
+                        decoration: BoxDecoration(
+                            color: _C.indigoLight,
+                            borderRadius: BorderRadius.circular(6)),
+                        child: Text(
+                          '${dayEvents.length} event${dayEvents.length > 1 ? 's' : ''}',
+                          style: const TextStyle(
+                              fontSize: 11,
+                              fontWeight: FontWeight.w600,
+                              color: _C.indigo),
+                        ),
+                      ),
+                    ]),
+                  ),
+                  Expanded(
+                    child: ListView.separated(
+                      // Key forces full rebuild when selected day changes
+                      key: ValueKey(selectedDay),
+                      padding: const EdgeInsets.fromLTRB(14, 4, 14, 100),
+                      itemCount: dayEvents.length,
+                      separatorBuilder: (_, __) => const SizedBox(height: 8),
+                      itemBuilder: (_, i) => _MobileEventCard(
+                        event: dayEvents[i],
+                        onTap: () => onEventTap(dayEvents[i]),
+                        onQuickAction: (_) {},
+                      ),
+                    ),
+                  ),
+                ],
+              ),
       ),
     ]);
   }
@@ -1030,6 +1059,7 @@ class _MobileMonthlyView extends StatelessWidget {
                   ),
                   Expanded(
                     child: ListView.separated(
+                      key: ValueKey(selectedDay),
                       padding: const EdgeInsets.fromLTRB(
                           14, 0, 14, 100),
                       itemCount: selectedEvents.length,

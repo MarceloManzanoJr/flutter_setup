@@ -391,10 +391,13 @@ class _EventFormDialogState extends State<_EventFormDialog> {
   late EventStatus _status;
   late DateTime    _startTime;
   late DateTime    _endTime;
+  Duration _duration = const Duration(hours: 1);
+  bool _isCustomDuration = false;
   String? _staff;
   String? _machine;
   String? _location;
   bool _isAdminTask = false;
+  bool _overrideConflict = false;
 
   @override
   void initState() {
@@ -406,6 +409,11 @@ class _EventFormDialogState extends State<_EventFormDialog> {
     _status      = e?.status ?? EventStatus.pending;
     _startTime   = e?.startTime ?? DateTime(_now.year, _now.month, _now.day, 9, 0);
     _endTime     = e?.endTime   ?? DateTime(_now.year, _now.month, _now.day, 10, 0);
+    final initialDuration = _endTime.difference(_startTime);
+    _duration = initialDuration.inMinutes <= 0
+        ? const Duration(hours: 1)
+        : initialDuration;
+    _isCustomDuration = !_isPresetDuration(_duration);
     _staff       = e?.assignedStaff;
     _machine     = e?.machine;
     _location    = e?.location;
@@ -421,6 +429,12 @@ class _EventFormDialogState extends State<_EventFormDialog> {
 
   String _generateId() =>
       'EVT-${DateTime.now().millisecondsSinceEpoch.toString().substring(7)}';
+
+  DateTime get _computedEndTime => _startTime.add(_duration);
+
+  void _recomputeEndTime() {
+    _endTime = _computedEndTime;
+  }
 
   Future<void> _pickDate(bool isStart) async {
     final picked = await showDatePicker(
@@ -439,13 +453,7 @@ class _EventFormDialogState extends State<_EventFormDialog> {
         _startTime = DateTime(
             picked.year, picked.month, picked.day,
             _startTime.hour, _startTime.minute);
-        if (_endTime.isBefore(_startTime)) {
-          _endTime = _startTime.add(const Duration(hours: 1));
-        }
-      } else {
-        _endTime = DateTime(
-            picked.year, picked.month, picked.day,
-            _endTime.hour, _endTime.minute);
+        _recomputeEndTime();
       }
     });
   }
@@ -465,16 +473,105 @@ class _EventFormDialogState extends State<_EventFormDialog> {
         _startTime = DateTime(
             _startTime.year, _startTime.month, _startTime.day,
             picked.hour, picked.minute);
-      } else {
-        _endTime = DateTime(
-            _endTime.year, _endTime.month, _endTime.day,
-            picked.hour, picked.minute);
+        _recomputeEndTime();
       }
+    });
+  }
+
+  Duration _durationFromLabel(String label) {
+    switch (label) {
+      case '30 min':
+        return const Duration(minutes: 30);
+      case '1 hour':
+        return const Duration(hours: 1);
+      case '1.5 hours':
+        return const Duration(hours: 1, minutes: 30);
+      case '2 hours':
+        return const Duration(hours: 2);
+      case '3 hours':
+        return const Duration(hours: 3);
+      case '4 hours':
+        return const Duration(hours: 4);
+      default:
+        return const Duration(hours: 1);
+    }
+  }
+
+  String _labelForDuration(Duration d) {
+    final mins = d.inMinutes;
+    if (mins == 30) return '30 min';
+    if (mins == 60) return '1 hour';
+    if (mins == 90) return '1.5 hours';
+    if (mins == 120) return '2 hours';
+    if (mins == 180) return '3 hours';
+    if (mins == 240) return '4 hours';
+    final hrs = d.inHours;
+    return hrs <= 1 ? '1 hour' : '$hrs hours';
+  }
+
+  bool _isPresetDuration(Duration d) {
+    const presets = [
+      Duration(minutes: 30),
+      Duration(hours: 1),
+      Duration(hours: 1, minutes: 30),
+      Duration(hours: 2),
+      Duration(hours: 3),
+      Duration(hours: 4),
+    ];
+    return presets.contains(d);
+  }
+
+  Future<void> _pickCustomDuration() async {
+    final pickedEnd = await showTimePicker(
+      context: context,
+      initialTime: TimeOfDay.fromDateTime(_computedEndTime),
+      builder: (ctx, child) => Theme(
+        data: Theme.of(ctx).copyWith(
+          colorScheme: const ColorScheme.light(primary: _C.indigo),
+        ),
+        child: child!,
+      ),
+    );
+    if (pickedEnd == null) return;
+
+    final end = DateTime(
+      _startTime.year,
+      _startTime.month,
+      _startTime.day,
+      pickedEnd.hour,
+      pickedEnd.minute,
+    );
+
+    if (!end.isAfter(_startTime)) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text(
+            'Custom end time must be after the start time.',
+          ),
+        ),
+      );
+      return;
+    }
+
+    setState(() {
+      _duration = end.difference(_startTime);
+      _isCustomDuration = !_isPresetDuration(_duration);
+      _recomputeEndTime();
     });
   }
 
   void _save() {
     if (_titleCtrl.text.trim().isEmpty) return;
+    // Guard against invalid times; end is always derived from start + duration
+    if (_computedEndTime.isBefore(_startTime)) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text(
+              'End time is before start time. Adjust start time or duration.'),
+        ),
+      );
+      return;
+    }
     widget.onSave(ScheduleEvent(
       id: widget.existing?.id ?? _generateId(),
       title: _titleCtrl.text.trim(),
@@ -482,7 +579,7 @@ class _EventFormDialogState extends State<_EventFormDialog> {
       type: _type,
       status: _status,
       startTime: _startTime,
-      endTime: _endTime,
+      endTime: _computedEndTime,
       assignedStaff: _staff,
       machine: _machine,
       location: _location,
@@ -614,7 +711,7 @@ class _EventFormDialogState extends State<_EventFormDialog> {
                             const SizedBox(height: 6),
                             _SharedDropdown<EventStatus>(
                               value: _status,
-                              items: EventStatus.values,
+                              items: _statusOptionsForType(_type),
                               labelBuilder: (s) => _statusLabel(s),
                               onChanged: (s) =>
                                   setState(() => _status = s!),
@@ -624,14 +721,14 @@ class _EventFormDialogState extends State<_EventFormDialog> {
                       ]),
                       const SizedBox(height: 14),
 
-                      // Date / Time  ── 2-col on mobile, 4-col on web ──
+                      // Date / Time  with duration ── 2-col on mobile, 4-col on web ──
                       if (isMobile) ...[
                         // Row 1: Start date + Start time
                         Row(children: [
                           Expanded(child: Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
-                              _FormLabel('Start Date'),
+                              _FormLabel('Date'),
                               const SizedBox(height: 6),
                               _DateTimeBtn(
                                   label: _fmtDateShort(_startTime),
@@ -653,39 +750,83 @@ class _EventFormDialogState extends State<_EventFormDialog> {
                           )),
                         ]),
                         const SizedBox(height: 10),
-                        // Row 2: End date + End time
+                        // Row 2: Duration + computed end time
                         Row(children: [
                           Expanded(child: Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
-                              _FormLabel('End Date'),
+                              _FormLabel('Duration'),
                               const SizedBox(height: 6),
-                              _DateTimeBtn(
-                                  label: _fmtDateShort(_endTime),
-                                  icon: Icons.calendar_today_rounded,
-                                  onTap: () => _pickDate(false)),
+                              Builder(builder: (context) {
+                                const presetLabels = [
+                                  '30 min',
+                                  '1 hour',
+                                  '1.5 hours',
+                                  '2 hours',
+                                  '3 hours',
+                                  '4 hours',
+                                ];
+                                const customKey = 'Custom…';
+                                final isPreset = _isPresetDuration(_duration);
+                                final items = [...presetLabels, customKey];
+                                final currentLabel =
+                                    isPreset ? _labelForDuration(_duration) : customKey;
+
+                                return Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    _SharedDropdown<String>(
+                                      value: currentLabel,
+                                      items: items,
+                                      labelBuilder: (s) => s,
+                                      onChanged: (s) async {
+                                        if (s == null) return;
+                                        if (s == customKey) {
+                                          await _pickCustomDuration();
+                                          return;
+                                        }
+                                        setState(() {
+                                          _duration = _durationFromLabel(s);
+                                          _isCustomDuration = false;
+                                          _recomputeEndTime();
+                                        });
+                                      },
+                                    ),
+                                    if (!isPreset) ...[
+                                      const SizedBox(height: 4),
+                                      Text(
+                                        'Custom: ${_fmtDuration(_duration)}',
+                                        style: const TextStyle(
+                                          fontSize: 11,
+                                          color: _C.textSecondary,
+                                        ),
+                                      ),
+                                    ],
+                                  ],
+                                );
+                              }),
                             ],
                           )),
                           const SizedBox(width: 10),
                           Expanded(child: Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
-                              _FormLabel('End Time'),
+                              _FormLabel('Ends At'),
                               const SizedBox(height: 6),
                               _DateTimeBtn(
-                                  label: _fmtTime(_endTime),
-                                  icon: Icons.access_time_rounded,
-                                  onTap: () => _pickTime(false)),
+                                  label: _fmtTime(_computedEndTime),
+                                  icon: Icons.lock_clock_rounded,
+                                  onTap: () {}),
                             ],
                           )),
                         ]),
                       ] else ...[
-                        // Web: all 4 in one row
+                        // Web: Date, Start Time, Duration, Ends At
                         Row(children: [
                           Expanded(child: Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
-                              _FormLabel('Start Date'),
+                              _FormLabel('Date'),
                               const SizedBox(height: 6),
                               _DateTimeBtn(
                                   label: _fmtDateShort(_startTime),
@@ -709,48 +850,81 @@ class _EventFormDialogState extends State<_EventFormDialog> {
                           Expanded(child: Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
-                              _FormLabel('End Date'),
+                              _FormLabel('Duration'),
                               const SizedBox(height: 6),
-                              _DateTimeBtn(
-                                  label: _fmtDateShort(_endTime),
-                                  icon: Icons.calendar_today_rounded,
-                                  onTap: () => _pickDate(false)),
+                              Builder(builder: (context) {
+                                const presetLabels = [
+                                  '30 min',
+                                  '1 hour',
+                                  '1.5 hours',
+                                  '2 hours',
+                                  '3 hours',
+                                  '4 hours',
+                                ];
+                                const customKey = 'Custom…';
+                                final isPreset = _isPresetDuration(_duration);
+                                final items = [...presetLabels, customKey];
+                                final currentLabel =
+                                    isPreset ? _labelForDuration(_duration) : customKey;
+
+                                return Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    _SharedDropdown<String>(
+                                      value: currentLabel,
+                                      items: items,
+                                      labelBuilder: (s) => s,
+                                      onChanged: (s) async {
+                                        if (s == null) return;
+                                        if (s == customKey) {
+                                          await _pickCustomDuration();
+                                          return;
+                                        }
+                                        setState(() {
+                                          _duration = _durationFromLabel(s);
+                                          _isCustomDuration = false;
+                                          _recomputeEndTime();
+                                        });
+                                      },
+                                    ),
+                                    if (!isPreset) ...[
+                                      const SizedBox(height: 4),
+                                      Text(
+                                        'Custom: ${_fmtDuration(_duration)}',
+                                        style: const TextStyle(
+                                          fontSize: 11,
+                                          color: _C.textSecondary,
+                                        ),
+                                      ),
+                                    ],
+                                  ],
+                                );
+                              }),
                             ],
                           )),
                           const SizedBox(width: 10),
                           Expanded(child: Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
-                              _FormLabel('End Time'),
+                              _FormLabel('Ends At'),
                               const SizedBox(height: 6),
                               _DateTimeBtn(
-                                  label: _fmtTime(_endTime),
-                                  icon: Icons.access_time_rounded,
-                                  onTap: () => _pickTime(false)),
+                                  label: _fmtTime(_computedEndTime),
+                                  icon: Icons.lock_clock_rounded,
+                                  onTap: () {}),
                             ],
                           )),
                         ]),
                       ],
                       const SizedBox(height: 14),
 
-                      // Staff + Machine
-                      Row(children: [
-                        Expanded(child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            _FormLabel('Assigned Staff'),
-                            const SizedBox(height: 6),
-                            _SharedDropdown<String?>(
-                              value: _staff,
-                              items: [null, ..._staffList],
-                              labelBuilder: (s) => s ?? 'None',
-                              onChanged: (s) =>
-                                  setState(() => _staff = s),
-                            ),
-                          ],
-                        )),
-                        const SizedBox(width: 10),
-                        Expanded(child: Column(
+                      // Smart Fields (Dynamic UI based on Event Type)
+                      Builder(builder: (_) {
+                        final isMachineUse = _type == EventType.machineUsage;
+                        final isMeeting   = _type == EventType.meeting;
+                        final isMaint     = _type == EventType.maintenance;
+
+                        final machineField = Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
                             _FormLabel('Machine'),
@@ -763,19 +937,87 @@ class _EventFormDialogState extends State<_EventFormDialog> {
                                   setState(() => _machine = m),
                             ),
                           ],
-                        )),
-                      ]),
-                      const SizedBox(height: 14),
+                        );
 
-                      // Location (full width)
-                      _FormLabel('Location'),
-                      const SizedBox(height: 6),
-                      _SharedDropdown<String?>(
-                        value: _location,
-                        items: [null, ..._locationList],
-                        labelBuilder: (l) => l ?? 'None',
-                        onChanged: (l) => setState(() => _location = l),
-                      ),
+                        final staffLabel =
+                            isMeeting ? 'Participants' : 'Assigned Staff';
+
+                        final staffField = Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            _FormLabel(staffLabel),
+                            const SizedBox(height: 6),
+                            _SharedDropdown<String?>(
+                              value: _staff,
+                              items: [null, ..._staffList],
+                              labelBuilder: (s) => s ?? 'None',
+                              onChanged: (s) =>
+                                  setState(() => _staff = s),
+                            ),
+                          ],
+                        );
+
+                        final locationField = Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            _FormLabel('Location'),
+                            const SizedBox(height: 6),
+                            _SharedDropdown<String?>(
+                              value: _location,
+                              items: [null, ..._locationList],
+                              labelBuilder: (l) => l ?? 'None',
+                              onChanged: (l) =>
+                                  setState(() => _location = l),
+                            ),
+                          ],
+                        );
+
+                        List<Widget> section = [];
+
+                        if (isMachineUse) {
+                          section = [
+                            Row(children: [
+                              Expanded(child: machineField),
+                              const SizedBox(width: 10),
+                              Expanded(child: staffField),
+                            ]),
+                          ];
+                        } else if (isMeeting) {
+                          section = [
+                            locationField,
+                            const SizedBox(height: 10),
+                            staffField,
+                          ];
+                        } else if (isMaint) {
+                          section = [
+                            Row(children: [
+                              Expanded(child: machineField),
+                              const SizedBox(width: 10),
+                              Expanded(child: staffField),
+                            ]),
+                            const SizedBox(height: 10),
+                            locationField,
+                          ];
+                        } else {
+                          section = [
+                            Row(children: [
+                              Expanded(child: staffField),
+                              const SizedBox(width: 10),
+                              Expanded(child: machineField),
+                            ]),
+                            const SizedBox(height: 10),
+                            locationField,
+                          ];
+                        }
+
+                        return Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            ...section,
+                            const SizedBox(height: 10),
+                          ],
+                        );
+                      }),
                       const SizedBox(height: 14),
 
                       // Admin task toggle
@@ -1090,7 +1332,8 @@ class _PickerSheet extends StatelessWidget {
 
 ({Color color, Color light, String label}) _statusMeta(EventStatus s) =>
     switch (s) {
-      EventStatus.pending    => (color: _C.amber,   light: _C.amberLight,   label: 'Pending'),
+      // Shown as "Scheduled" for normal events
+      EventStatus.pending    => (color: _C.amber,   light: _C.amberLight,   label: 'Scheduled'),
       EventStatus.inProgress => (color: _C.indigo,  light: _C.indigoLight,  label: 'In Progress'),
       EventStatus.completed  => (color: _C.emerald, light: _C.emeraldLight, label: 'Completed'),
       EventStatus.canceled   => (color: _C.slate,   light: _C.slateLight,   label: 'Canceled'),
@@ -1101,6 +1344,22 @@ class _PickerSheet extends StatelessWidget {
 String _statusLabel(EventStatus s) => _statusMeta(s).label;
 Color  _statusColor(EventStatus s) => _statusMeta(s).color;
 
+List<EventStatus> _statusOptionsForType(EventType type) {
+  if (type == EventType.requestApproval) {
+    return const [
+      EventStatus.pending,
+      EventStatus.approved,
+      EventStatus.rejected,
+    ];
+  }
+  return const [
+    EventStatus.pending,
+    EventStatus.inProgress,
+    EventStatus.completed,
+    EventStatus.canceled,
+  ];
+}
+
 // ─────────────────────────────────────────────
 //  STRING / DATE HELPERS  (shared)
 // ─────────────────────────────────────────────
@@ -1108,9 +1367,12 @@ bool _isSameDay(DateTime a, DateTime b) =>
     a.year == b.year && a.month == b.month && a.day == b.day;
 
 String _fmtTime(DateTime dt) {
-  final h = dt.hour.toString().padLeft(2, '0');
-  final m = dt.minute.toString().padLeft(2, '0');
-  return '$h:$m';
+  final h24 = dt.hour;
+  final h12 = h24 % 12 == 0 ? 12 : h24 % 12;
+  final hStr = h12.toString().padLeft(2, '0');
+  final mStr = dt.minute.toString().padLeft(2, '0');
+  final suffix = h24 >= 12 ? 'PM' : 'AM';
+  return '$hStr:$mStr $suffix';
 }
 
 String _fmtDateShort(DateTime dt) {

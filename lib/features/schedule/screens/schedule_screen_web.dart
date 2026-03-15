@@ -75,15 +75,10 @@ class _WebScheduleViewState extends State<_WebScheduleView>
                         focusedDay: focusedDay,
                         events: filteredEvents,
                         selectedDay: selectedDay,
-                        onDayTap: (d) {
-                          setState(() {
-                            selectedDay = d;
-                            focusedDay = d;
-                          });
-                          WidgetsBinding.instance.addPostFrameCallback((_) {
-                            if (mounted) _viewTab.animateTo(0);
-                          });
-                        },
+                        onDayTap: (d) => setState(() {
+                          selectedDay = d;
+                          focusedDay = d;
+                        }),
                         onEventTap: (e) => setState(() =>
                             _selectedEvent =
                                 _selectedEvent?.id == e.id ? null : e),
@@ -93,15 +88,10 @@ class _WebScheduleViewState extends State<_WebScheduleView>
                         focusedDay: focusedDay,
                         events: filteredEvents,
                         selectedDay: selectedDay,
-                        onDayTap: (d) {
-                          setState(() {
-                            selectedDay = d;
-                            focusedDay = d;
-                          });
-                          WidgetsBinding.instance.addPostFrameCallback((_) {
-                            if (mounted) _viewTab.animateTo(0);
-                          });
-                        },
+                        onDayTap: (d) => setState(() {
+                          selectedDay = d;
+                          focusedDay = d;
+                        }),
                         onMonthChanged: (d) =>
                             setState(() => focusedDay = d),
                       ),
@@ -647,47 +637,81 @@ class _WebWeeklyView extends StatelessWidget {
           }),
         ]),
         const SizedBox(height: 16),
-        ...days.map((day) {
-          final dayEvents = events
+        // ── Events for selected day only ──
+        Builder(builder: (_) {
+          final selectedDayEvents = events
               .where((e) =>
-                  e.startTime.year == day.year &&
-                  e.startTime.month == day.month &&
-                  e.startTime.day == day.day)
+                  e.startTime.year  == selectedDay.year &&
+                  e.startTime.month == selectedDay.month &&
+                  e.startTime.day   == selectedDay.day)
               .toList();
-          if (dayEvents.isEmpty) return const SizedBox.shrink();
-          return Padding(
-            padding: const EdgeInsets.only(bottom: 12),
-            child: Row(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                SizedBox(
-                  width: 52,
+
+          return Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              // Date header
+              Row(children: [
+                Text(
+                  _isSameDay(selectedDay, DateTime.now())
+                      ? 'Today — ${_fmtDateLong(selectedDay)}'
+                      : _fmtDateLong(selectedDay),
+                  style: const TextStyle(
+                      fontSize: 14,
+                      fontWeight: FontWeight.w700,
+                      color: _C.textPrimary),
+                ),
+                const SizedBox(width: 10),
+                Container(
+                  padding: const EdgeInsets.symmetric(
+                      horizontal: 8, vertical: 4),
+                  decoration: BoxDecoration(
+                      color: selectedDayEvents.isEmpty
+                          ? _C.slateLight
+                          : _C.indigoLight,
+                      borderRadius: BorderRadius.circular(6)),
                   child: Text(
-                    '${_weekdayShort(day.weekday)}\n${day.day}',
+                    selectedDayEvents.isEmpty
+                        ? 'No events'
+                        : '${selectedDayEvents.length} event${selectedDayEvents.length > 1 ? 's' : ''}',
                     style: TextStyle(
                         fontSize: 11,
                         fontWeight: FontWeight.w600,
-                        color: _isSameDay(day, DateTime.now())
-                            ? _C.indigo
-                            : _C.textMuted),
-                    textAlign: TextAlign.center,
+                        color: selectedDayEvents.isEmpty
+                            ? _C.textMuted
+                            : _C.indigo),
                   ),
                 ),
-                Expanded(
+              ]),
+              const SizedBox(height: 12),
+              if (selectedDayEvents.isEmpty)
+                Container(
+                  width: double.infinity,
+                  padding: const EdgeInsets.symmetric(vertical: 32),
+                  decoration: BoxDecoration(
+                      color: Colors.white,
+                      borderRadius: BorderRadius.circular(12),
+                      border: Border.all(color: _C.border)),
                   child: Column(
-                    children: dayEvents
-                        .map((e) => _WebEventTile(
-                              event: e,
-                              isSelected: selectedEvent?.id == e.id,
-                              onTap: () => onEventTap(e),
-                              onQuickAction: (_) {},
-                              compact: true,
-                            ))
-                        .toList(),
-                  ),
-                ),
-              ],
-            ),
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                    const Icon(Icons.event_busy_rounded,
+                        size: 28, color: _C.textMuted),
+                    const SizedBox(height: 8),
+                    Text(
+                      'Nothing scheduled for ${_fmtDateShort(selectedDay)}',
+                      style: const TextStyle(
+                          fontSize: 13, color: _C.textMuted),
+                    ),
+                  ]),
+                )
+              else
+                ...selectedDayEvents.map((e) => _WebEventTile(
+                      event: e,
+                      isSelected: selectedEvent?.id == e.id,
+                      onTap: () => onEventTap(e),
+                      onQuickAction: (_) {},
+                    )),
+            ],
           );
         }),
       ]),
@@ -883,6 +907,83 @@ class _WebMonthlyView extends StatelessWidget {
             }),
           ]),
         ),
+        const SizedBox(height: 20),
+        // ── Selected day event list ──
+        Builder(builder: (_) {
+          final selectedDayEvents = events
+              .where((e) =>
+                  e.startTime.year  == selectedDay.year &&
+                  e.startTime.month == selectedDay.month &&
+                  e.startTime.day   == selectedDay.day)
+              .toList();
+
+          return Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(children: [
+                Text(
+                  _isSameDay(selectedDay, DateTime.now())
+                      ? 'Today — ${_fmtDateLong(selectedDay)}'
+                      : _fmtDateLong(selectedDay),
+                  style: const TextStyle(
+                      fontSize: 14,
+                      fontWeight: FontWeight.w700,
+                      color: _C.textPrimary),
+                ),
+                const SizedBox(width: 10),
+                Container(
+                  padding: const EdgeInsets.symmetric(
+                      horizontal: 8, vertical: 4),
+                  decoration: BoxDecoration(
+                      color: selectedDayEvents.isEmpty
+                          ? _C.slateLight
+                          : _C.indigoLight,
+                      borderRadius: BorderRadius.circular(6)),
+                  child: Text(
+                    selectedDayEvents.isEmpty
+                        ? 'No events'
+                        : '${selectedDayEvents.length} event${selectedDayEvents.length > 1 ? 's' : ''}',
+                    style: TextStyle(
+                        fontSize: 11,
+                        fontWeight: FontWeight.w600,
+                        color: selectedDayEvents.isEmpty
+                            ? _C.textMuted
+                            : _C.indigo),
+                  ),
+                ),
+              ]),
+              const SizedBox(height: 12),
+              if (selectedDayEvents.isEmpty)
+                Container(
+                  width: double.infinity,
+                  padding: const EdgeInsets.symmetric(vertical: 28),
+                  decoration: BoxDecoration(
+                      color: Colors.white,
+                      borderRadius: BorderRadius.circular(12),
+                      border: Border.all(color: _C.border)),
+                  child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                    const Icon(Icons.event_available_rounded,
+                        size: 26, color: _C.textMuted),
+                    const SizedBox(height: 8),
+                    Text(
+                      'No events on ${_fmtDateShort(selectedDay)}. Tap another date.',
+                      style: const TextStyle(
+                          fontSize: 13, color: _C.textMuted),
+                    ),
+                  ]),
+                )
+              else
+                ...selectedDayEvents.map((e) => _WebEventTile(
+                      event: e,
+                      isSelected: false,
+                      onTap: () {},
+                      onQuickAction: (_) {},
+                    )),
+            ],
+          );
+        }),
       ]),
     );
   }

@@ -978,21 +978,18 @@ class _RequestCard extends StatelessWidget {
           color: isSelected ? _RC.indigoLight : Colors.white,
           borderRadius: BorderRadius.circular(13),
           border: Border.all(
-              color: isSelected
-                  ? _RC.indigo.withOpacity(0.4)
-                  : request.status == RequestStatus.conflict
-                      ? _RC.rose.withOpacity(0.3)
-                      : _RC.border),
-          boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.03), blurRadius: 10, offset: const Offset(0, 2))],
+            color: isSelected
+                ? _RC.indigo.withOpacity(0.4)
+                : request.status == RequestStatus.conflict
+                    ? _RC.rose.withOpacity(0.3)
+                    : _RC.border,
+          ),
         ),
         child: ClipRRect(
           borderRadius: BorderRadius.circular(13),
-          child: Column(children: [
-            // status accent
-            Container(height: 3, color: sm.color),
-            Padding(
-              padding: const EdgeInsets.all(13),
-              child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+          child: Padding(
+            padding: const EdgeInsets.all(13),
+            child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
                 // Row 1: ID + status + type
                 Row(children: [
                   Text(request.id, style: const TextStyle(fontSize: 11, color: _RC.textMuted, fontFamily: 'monospace')),
@@ -1075,8 +1072,7 @@ class _RequestCard extends StatelessWidget {
                   ]),
                 ],
               ]),
-            ),
-          ]),
+          ),
         ),
       ),
     );
@@ -1168,9 +1164,11 @@ class _SharedNotifPanel extends StatelessWidget {
     final read   = notifs.where((n) => n.isRead).toList();
 
     return Container(
-      decoration: BoxDecoration(color: Colors.white, border: Border.all(color: _RC.border),
-          borderRadius: BorderRadius.circular(14),
-          boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.04), blurRadius: 12, offset: const Offset(0, 3))]),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        border: Border.all(color: _RC.border),
+        borderRadius: BorderRadius.circular(14),
+      ),
       child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
         Padding(
           padding: const EdgeInsets.fromLTRB(16, 14, 12, 10),
@@ -1252,9 +1250,11 @@ class _KpiCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) => Expanded(child: Container(
     padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
-    decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: _RC.border),
-        boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.03), blurRadius: 8, offset: const Offset(0, 2))]),
+    decoration: BoxDecoration(
+      color: Colors.white,
+      borderRadius: BorderRadius.circular(12),
+      border: Border.all(color: _RC.border),
+    ),
     child: Row(children: [
       Container(padding: const EdgeInsets.all(7),
           decoration: BoxDecoration(color: color.withOpacity(0.1), borderRadius: BorderRadius.circular(8)),
